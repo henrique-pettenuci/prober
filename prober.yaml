@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prober
+  labels:
+    app: prober
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prober
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: prober
+      labels:
+        app: prober
+    spec:
+      containers:
+      - name: prober
+        ports:
+          - name: http
+            containerPort: 8080
+        image: prober:latest
+        imagePullPolicy: Never
+        startupProbe:
+          httpGet:
+            path: /startup
+            port: 8080
+            scheme: HTTP
+          failureThreshold: 5
+          periodSeconds: 5
+          timeoutSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /liveness
+            port: 8080
+            scheme: HTTP
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /readiness
+            port: 8080
+            scheme: HTTP
+          periodSeconds: 5
+          successThreshold: 2
+          timeoutSeconds: 3
+        env:
+          - name: STARTUP_PROBE_DELAY
+            value: '0'
+          - name: READINESS_PROBE_DELAY
+            value: '0'
+          - name: LIVENESS_PROBE_DELAY
+            value: '0'
