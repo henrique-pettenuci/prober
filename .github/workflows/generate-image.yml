@@ -1,7 +1,8 @@
 name: Generate container image
 on:
   push:
-    tags: [ 'v*.*.*' ]
+    tags: 
+      - v*
 
 env:
   REGISTRY: ghcr.io
@@ -47,6 +48,4 @@ jobs:
         env:
           TAGS: ${{ steps.meta.outputs.tags }}
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
-        # This step uses the identity token to provision an ephemeral certificate
-        # against the sigstore community Fulcio instance.
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
