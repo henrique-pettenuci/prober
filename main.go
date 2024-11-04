@@ -54,6 +54,12 @@ func postConfigs(c *gin.Context) {
 	c.IndentedJSON(http.StatusCreated, newConfigs)
 }
 
+func delayRequest(c *gin.Context) {
+  delay, _ := strconv.ParseInt(c.Param("seconds"),10,64)
+  time.Sleep(time.Duration(delay) * time.Second)
+  c.JSON(http.StatusOK, gin.H{"message": delay})
+}
+
 func main() {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
@@ -64,6 +70,8 @@ func main() {
 	router.GET("/liveness", livenessProbe)
 	// Config
 	router.POST("/config", postConfigs)
+  // Request delay test
+  router.GET("/delay/:seconds", delayRequest)
 
 	router.Run(":8080")
 }
