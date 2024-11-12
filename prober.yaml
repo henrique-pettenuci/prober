@@ -46,6 +46,19 @@ spec:
           periodSeconds: 5
           successThreshold: 2
           timeoutSeconds: 3
+        resources:
+          requests:
+            cpu: 50m
+            memory: 32Mi
+          limits:
+            cpu: 500m
+            memory: 120Mi
+        lifecycle:
+          preStop:
+            exec:
+              command:
+                - /bin/sleep
+                - "30"
         env:
           - name: STARTUP_PROBE_DELAY
             value: '0'
@@ -53,3 +66,20 @@ spec:
             value: '0'
           - name: LIVENESS_PROBE_DELAY
             value: '0'
+    terminationGracePeriodSeconds: 120
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prober
+  labels:
+    app: prober
+spec:
+  ports:
+    - name: app
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+  selector:
+    frontedBy: prober
+  type: ClusterIP
