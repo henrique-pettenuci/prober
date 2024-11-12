@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"net/http"
+	"log"
 	"os"
+	"os/signal"
 	"strconv"
 	"time"
+	"syscall"
 
 	"github.com/gin-gonic/gin"
 )
@@ -63,16 +67,49 @@ func delayRequest(c *gin.Context) {
 func main() {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
-
 	// Probes
 	router.GET("/startup", startupProbe)
 	router.GET("/readiness", readinessProbe)
 	router.GET("/liveness", livenessProbe)
 	// Config
 	router.POST("/config", postConfigs)
-  // Request delay test
-  router.GET("/delay/:seconds", delayRequest)
+	// Request delay test
+	router.GET("/delay/:seconds", delayRequest)
 
-	router.Run(":8080")
+	srv := &http.Server{
+		Addr: ":8080",
+		Handler: router,
+	}
+
+	srvErrs := make(chan error, 1)
+	go func() {
+		srvErrs <- srv.ListenAndServe()
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, sycall.SIGTERM)
+
+	shutdown := gracefulShutdown(srv)
+
+	select {
+	case err := <-srvErrs:
+		shutdown(err)
+	case sig := <-quit:
+		shutdown(sig)
+	}
+
+	log.Println("Server exiting")
 }
 
+func gracefulShutdown(srv *http.Server) func(reason interface{}) {
+	return func(reason interface{}) {
+		log.Println("Server shutdown: ", reason)
+
+		ctx, cancel := context.WithTimeout(context.Background(), 260*time.Second)
+		defer cancel()
+
+		if err := srv.Shutdown(ctx); err != nil {
+			log.Println("Erros to Gracefully shutdown server: ", err)
+		}
+	}
+}
