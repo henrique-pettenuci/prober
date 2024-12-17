@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/hpettenuci/prober/compare/v1.2.0...v1.3.0) (2024-12-17)
+
+
+### Features
+
+* Add new endpoint to handle Graceful Shutdown ([#13](https://github.com/hpettenuci/prober/issues/13)) ([2755224](https://github.com/hpettenuci/prober/commit/2755224a0a23b013f93cd9ea6185bc467f143de8))
+
 ## [1.2.0](https://github.com/hpettenuci/prober/compare/v1.1.0...v1.2.0) (2024-11-12)
 
 
