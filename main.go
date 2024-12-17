@@ -13,6 +13,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+var inShutdown bool = false
+
 type configs struct {
 	Startup   string `json:"startup"`
 	Readiness string `json:"readiness"`
@@ -59,9 +61,26 @@ func postConfigs(c *gin.Context) {
 }
 
 func delayRequest(c *gin.Context) {
-  delay, _ := strconv.ParseInt(c.Param("seconds"),10,64)
-  time.Sleep(time.Duration(delay) * time.Second)
-  c.JSON(http.StatusOK, gin.H{"message": delay})
+  	delay, _ := strconv.ParseInt(c.Param("seconds"),10,64)
+  	time.Sleep(time.Duration(delay) * time.Second)
+  	c.JSON(http.StatusOK, gin.H{"message": delay})
+}
+
+func graceDelayRequest(c *gin.Context) {
+	delay, _ := strconv.ParseInt(c.Param("seconds"),10,64)
+	var delayInc int64 = -1
+  
+	for delayInc < delay {
+	  time.Sleep(time.Duration(1) * time.Second)
+  
+	  if inShutdown {
+		 break
+	  }
+  
+	  delayInc++
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": delayInc})
 }
 
 func main() {
@@ -73,8 +92,10 @@ func main() {
 	router.GET("/liveness", livenessProbe)
 	// Config
 	router.POST("/config", postConfigs)
-	// Request delay test
+	
+	// Request Delay
 	router.GET("/delay/:seconds", delayRequest)
+	router.GET("/graceDelay/:seconds", graceDelayRequest)
 
 	srv := &http.Server{
 		Addr: ":8080",
@@ -87,7 +108,7 @@ func main() {
 	}()
 
 	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, sycall.SIGTERM)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	shutdown := gracefulShutdown(srv)
 
@@ -103,6 +124,8 @@ func main() {
 
 func gracefulShutdown(srv *http.Server) func(reason interface{}) {
 	return func(reason interface{}) {
+		inShutdown = true
+
 		log.Println("Server shutdown: ", reason)
 
 		ctx, cancel := context.WithTimeout(context.Background(), 260*time.Second)
