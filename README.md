@@ -12,12 +12,14 @@ This is a simple application to answer Kubernetes probes that could be used to t
 
 ## API
 
-| Path       | METHOD | Description                                     |
-|------------|--------|-------------------------------------------------|
-| /startup   | GET    | Return 200 after delay defined on configuration |
-| /readiness | GET    | Return 200 after delay defined on configuration |
-| /liveness  | GET    | Return 200 after delay defined on configuration |
-| /config    | POST   | Update probes delay                             |
+| Path                 | METHOD | Description                                     |
+|----------------------|--------|-------------------------------------------------|
+| /startup             | GET    | Return 200 after delay defined on configuration |
+| /readiness           | GET    | Return 200 after delay defined on configuration |
+| /liveness            | GET    | Return 200 after delay defined on configuration |
+| /config              | POST   | Update probes delay                             |
+| /delay/:seconds      | GET    | Return 200 after X seconds of delay             |
+| /graceDelay/:seconds | GET    | Return 200 after X seconds but handle shutdown  |
 
 ### Config endpoint
 ```bash
