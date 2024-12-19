@@ -12,6 +12,7 @@ import (
 )
 
 func TestStartupProbe(t *testing.T) {
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 	router.GET("/startup", probeHandler(startupProbeDelayEnv, "startup"))
 
@@ -30,6 +31,7 @@ func TestStartupProbe(t *testing.T) {
 }
 
 func TestReadinessProbe(t *testing.T) {
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 	router.GET("/readiness", probeHandler(readinessProbeDelayEnv, "readiness"))
 
@@ -48,6 +50,7 @@ func TestReadinessProbe(t *testing.T) {
 }
 
 func TestLivenessProbe(t *testing.T) {
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 	router.GET("/liveness", probeHandler(livenessProbeDelayEnv, "liveness"))
 
@@ -66,6 +69,7 @@ func TestLivenessProbe(t *testing.T) {
 }
 
 func TestPostConfigs(t *testing.T) {
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 	router.POST("/config", postConfigs)
 
@@ -79,11 +83,7 @@ func TestPostConfigs(t *testing.T) {
 		t.Errorf("expected status %d, got %d", http.StatusCreated, w.Code)
 	}
 
-	expected := `{
-	"startup": "5",
-	"readiness": "10",
-	"liveness": "15"
-}`
+	expected := `{"startup":"5","readiness":"10","liveness":"15"}`
 	if w.Body.String() != expected {
 		t.Errorf("expected body %s, got %s", expected, w.Body.String())
 	}
@@ -100,6 +100,7 @@ func TestPostConfigs(t *testing.T) {
 }
 
 func TestDelayRequest(t *testing.T) {
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 	router.GET("/delay/:seconds", delayRequest)
 
@@ -124,6 +125,7 @@ func TestDelayRequest(t *testing.T) {
 }
 
 func TestGraceDelayRequest(t *testing.T) {
+	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 	router.GET("/graceDelay/:seconds", graceDelayRequest)
 

@@ -28,13 +28,16 @@ type configs struct {
 }
 
 func getProbeDelay(probeEnv string) time.Duration {
-	probeDelay, e := os.LookupEnv(probeEnv)
-	if !e {
+	probeDelay, exists := os.LookupEnv(probeEnv)
+	if !exists {
 		return 0
-	} else {
-		probeDelay, _ := strconv.ParseInt(probeDelay, 10, 64)
-		return time.Duration(probeDelay)
 	}
+	delay, err := strconv.ParseInt(probeDelay, 10, 64)
+	if err != nil {
+		log.Printf("Invalid delay value for %s: %v", probeEnv, err)
+		return 0
+	}
+	return time.Duration(delay) * time.Second
 }
 
 func probeHandler(probeEnv string, message string) gin.HandlerFunc {
@@ -48,6 +51,7 @@ func postConfigs(c *gin.Context) {
 	var newConfigs configs
 
 	if err := c.BindJSON(&newConfigs); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 		return
 	}
 
@@ -55,7 +59,7 @@ func postConfigs(c *gin.Context) {
 	os.Setenv(readinessProbeDelayEnv, newConfigs.Readiness)
 	os.Setenv(livenessProbeDelayEnv, newConfigs.Liveness)
 
-	c.IndentedJSON(http.StatusCreated, newConfigs)
+	c.JSON(http.StatusCreated, newConfigs)
 }
 
 func delayRequest(c *gin.Context) {
@@ -74,16 +78,18 @@ func graceDelayRequest(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid delay value"})
 		return
 	}
-	var delayInc int64 = -1
+	var delayInc int64 = 0
 
-	for delayInc < delay {
-		time.Sleep(1 * time.Second)
+	if delay > 0 {
+		for delayInc < delay {
+			time.Sleep(1 * time.Second)
 
-		if inShutdown {
-			break
+			if inShutdown {
+				break
+			}
+
+			delayInc++
 		}
-
-		delayInc++
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": delayInc})
