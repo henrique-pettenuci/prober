@@ -2,15 +2,21 @@ package main
 
 import (
 	"context"
-	"net/http"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
-	"time"
 	"syscall"
+	"time"
 
 	"github.com/gin-gonic/gin"
+)
+
+const (
+	startupProbeDelayEnv   = "STARTUP_PROBE_DELAY"
+	readinessProbeDelayEnv = "READINESS_PROBE_DELAY"
+	livenessProbeDelayEnv  = "LIVENESS_PROBE_DELAY"
 )
 
 var inShutdown bool = false
@@ -31,19 +37,11 @@ func getProbeDelay(probeEnv string) time.Duration {
 	}
 }
 
-func startupProbe(c *gin.Context) {
-	time.Sleep(getProbeDelay("STARTUP_PROBE_DELAY") * time.Second)
-	c.JSON(http.StatusOK, gin.H{"message": "startup"})
-}
-
-func readinessProbe(c *gin.Context) {
-	time.Sleep(getProbeDelay("READINESS_PROBE_DELAY") * time.Second)
-	c.JSON(http.StatusOK, gin.H{"message": "readiness"})
-}
-
-func livenessProbe(c *gin.Context) {
-	time.Sleep(getProbeDelay("LIVENESS_PROBE_DELAY") * time.Second)
-	c.JSON(http.StatusOK, gin.H{"message": "liveness"})
+func probeHandler(probeEnv string, message string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		time.Sleep(getProbeDelay(probeEnv))
+		c.JSON(http.StatusOK, gin.H{"message": message})
+	}
 }
 
 func postConfigs(c *gin.Context) {
@@ -53,31 +51,39 @@ func postConfigs(c *gin.Context) {
 		return
 	}
 
-	os.Setenv("STARTUP_PROBE_DELAY", newConfigs.Startup)
-	os.Setenv("READINESS_PROBE_DELAY", newConfigs.Readiness)
-	os.Setenv("LIVENESS_PROBE_DELAY", newConfigs.Liveness)
+	os.Setenv(startupProbeDelayEnv, newConfigs.Startup)
+	os.Setenv(readinessProbeDelayEnv, newConfigs.Readiness)
+	os.Setenv(livenessProbeDelayEnv, newConfigs.Liveness)
 
 	c.IndentedJSON(http.StatusCreated, newConfigs)
 }
 
 func delayRequest(c *gin.Context) {
-  	delay, _ := strconv.ParseInt(c.Param("seconds"),10,64)
-  	time.Sleep(time.Duration(delay) * time.Second)
-  	c.JSON(http.StatusOK, gin.H{"message": delay})
+	delay, err := strconv.ParseInt(c.Param("seconds"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid delay value"})
+		return
+	}
+	time.Sleep(time.Duration(delay) * time.Second)
+	c.JSON(http.StatusOK, gin.H{"message": delay})
 }
 
 func graceDelayRequest(c *gin.Context) {
-	delay, _ := strconv.ParseInt(c.Param("seconds"),10,64)
+	delay, err := strconv.ParseInt(c.Param("seconds"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid delay value"})
+		return
+	}
 	var delayInc int64 = -1
-  
+
 	for delayInc < delay {
-	  time.Sleep(time.Duration(1) * time.Second)
-  
-	  if inShutdown {
-		 break
-	  }
-  
-	  delayInc++
+		time.Sleep(1 * time.Second)
+
+		if inShutdown {
+			break
+		}
+
+		delayInc++
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": delayInc})
@@ -87,18 +93,18 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 	// Probes
-	router.GET("/startup", startupProbe)
-	router.GET("/readiness", readinessProbe)
-	router.GET("/liveness", livenessProbe)
+	router.GET("/startup", probeHandler(startupProbeDelayEnv, "startup"))
+	router.GET("/readiness", probeHandler(readinessProbeDelayEnv, "readiness"))
+	router.GET("/liveness", probeHandler(livenessProbeDelayEnv, "liveness"))
 	// Config
 	router.POST("/config", postConfigs)
-	
+
 	// Request Delay
 	router.GET("/delay/:seconds", delayRequest)
 	router.GET("/graceDelay/:seconds", graceDelayRequest)
 
 	srv := &http.Server{
-		Addr: ":8080",
+		Addr:    ":8080",
 		Handler: router,
 	}
 
