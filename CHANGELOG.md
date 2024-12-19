@@ -1,5 +1,12 @@
 # Changelog
 
+### [1.3.1](https://github.com/hpettenuci/prober/compare/v1.3.0...v1.3.1) (2024-12-19)
+
+
+### Bug Fixes
+
+* Code improvements and Security Fixes ([#15](https://github.com/hpettenuci/prober/issues/15)) ([2490788](https://github.com/hpettenuci/prober/commit/2490788394559cdaa214a11a600737fa1dd1a892))
+
 ## [1.3.0](https://github.com/hpettenuci/prober/compare/v1.2.0...v1.3.0) (2024-12-17)
 
 
