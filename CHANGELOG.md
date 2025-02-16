@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/hpettenuci/prober/compare/v1.3.1...v1.4.0) (2025-02-16)
+
+
+### Features
+
+* add metrics ([#17](https://github.com/hpettenuci/prober/issues/17)) ([037d769](https://github.com/hpettenuci/prober/commit/037d769f6be17c9852f61222001a5530a66f51f4))
+
 ### [1.3.1](https://github.com/hpettenuci/prober/compare/v1.3.0...v1.3.1) (2024-12-19)
 
 
