@@ -11,6 +11,9 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/collectors/version"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const (
@@ -19,7 +22,15 @@ const (
 	livenessProbeDelayEnv  = "LIVENESS_PROBE_DELAY"
 )
 
-var inShutdown bool = false
+var (
+	inShutdown bool = false
+	m          *metrics
+)
+
+type metrics struct {
+	activeRequests  prometheus.Gauge
+	requestCounter  *prometheus.CounterVec
+}
 
 type configs struct {
 	Startup   string `json:"startup"`
@@ -32,7 +43,7 @@ func getProbeDelay(probeEnv string) time.Duration {
 	if !exists {
 		return 0
 	}
-	delay, err := strconv.ParseInt(probeDelay, 10, 64)
+	delay, err := strconv.ParseInt(probeDelay, 10, 8)
 	if err != nil {
 		log.Printf("Invalid delay value for %s: %v", probeEnv, err)
 		return 0
@@ -49,7 +60,6 @@ func probeHandler(probeEnv string, message string) gin.HandlerFunc {
 
 func postConfigs(c *gin.Context) {
 	var newConfigs configs
-
 	if err := c.BindJSON(&newConfigs); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 		return
@@ -60,19 +70,27 @@ func postConfigs(c *gin.Context) {
 	os.Setenv(livenessProbeDelayEnv, newConfigs.Liveness)
 
 	c.JSON(http.StatusCreated, newConfigs)
+	m.requestCounter.WithLabelValues("POST", "/config", strconv.Itoa(c.Writer.Status())).Inc()
 }
 
 func delayRequest(c *gin.Context) {
+	m.activeRequests.Inc()
+
 	delay, err := strconv.ParseInt(c.Param("seconds"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid delay value"})
 		return
 	}
 	time.Sleep(time.Duration(delay) * time.Second)
+
 	c.JSON(http.StatusOK, gin.H{"message": delay})
+	m.activeRequests.Dec()
+	m.requestCounter.WithLabelValues(c.Request.Method, c.FullPath(), strconv.Itoa(c.Writer.Status())).Inc()
 }
 
 func graceDelayRequest(c *gin.Context) {
+	m.activeRequests.Inc()
+
 	delay, err := strconv.ParseInt(c.Param("seconds"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid delay value"})
@@ -82,22 +100,48 @@ func graceDelayRequest(c *gin.Context) {
 
 	if delay > 0 {
 		for delayInc < delay {
+			delayInc++
 			time.Sleep(1 * time.Second)
 
 			if inShutdown {
 				break
 			}
-
-			delayInc++
 		}
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": delayInc})
+	m.activeRequests.Dec()
+	m.requestCounter.WithLabelValues(c.Request.Method, c.FullPath(), strconv.Itoa(c.Writer.Status())).Inc()
+}
+
+func setMetrics(promRegistry *prometheus.Registry) *metrics {
+	metricList := &metrics{
+		requestCounter: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "http_requests_total",
+			Help: "Number of HTTP requests",
+		},
+			[]string{"method", "endpoint", "statusCode"},
+		),
+		activeRequests: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "active_requests",
+			Help: "Number of active requests",
+		}),
+	}
+
+	promRegistry.MustRegister(metricList.requestCounter)
+	promRegistry.MustRegister(metricList.activeRequests)
+	return metricList
 }
 
 func main() {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
+
+	promRegistry := prometheus.NewRegistry()
+	m = setMetrics(promRegistry)
+	promRegistry.MustRegister(version.NewCollector("prober"))
+
+	router.GET("/metrics", gin.WrapH(promhttp.HandlerFor(promRegistry, promhttp.HandlerOpts{})))
 	// Probes
 	router.GET("/startup", probeHandler(startupProbeDelayEnv, "startup"))
 	router.GET("/readiness", probeHandler(readinessProbeDelayEnv, "readiness"))

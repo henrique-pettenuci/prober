@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 func TestStartupProbe(t *testing.T) {
@@ -100,6 +101,10 @@ func TestPostConfigs(t *testing.T) {
 }
 
 func TestDelayRequest(t *testing.T) {
+	// Initialize prometheus registry and metrics
+	promRegistry := prometheus.NewRegistry()
+	m = setMetrics(promRegistry)
+
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 	router.GET("/delay/:seconds", delayRequest)
@@ -125,9 +130,19 @@ func TestDelayRequest(t *testing.T) {
 }
 
 func TestGraceDelayRequest(t *testing.T) {
+	// Initialize prometheus registry and metrics
+	promRegistry := prometheus.NewRegistry()
+	m = setMetrics(promRegistry)
+
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 	router.GET("/graceDelay/:seconds", graceDelayRequest)
+
+	// Simulate a shutdown signal after 1 second
+	go func() {
+		time.Sleep(1 * time.Second)
+		inShutdown = true
+	}()
 
 	req, _ := http.NewRequest("GET", "/graceDelay/2", nil)
 	w := httptest.NewRecorder()
@@ -139,12 +154,28 @@ func TestGraceDelayRequest(t *testing.T) {
 		t.Errorf("expected status %d, got %d", http.StatusOK, w.Code)
 	}
 
-	expected := `{"message":2}`
+	expected := `{"message":1}`
 	if w.Body.String() != expected {
 		t.Errorf("expected body %s, got %s", expected, w.Body.String())
 	}
 
-	if duration < 2*time.Second {
-		t.Errorf("expected delay of at least 2 seconds, got %v", duration)
+	if duration < 1*time.Second || duration > 2*time.Second {
+		t.Errorf("expected delay of around 1 second, got %v", duration)
+	}
+
+	// Reset inShutdown for other tests
+	inShutdown = false
+}
+
+func Test_main(t *testing.T) {
+	tests := []struct {
+		name string // description of this test case
+	}{
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			main()
+		})
 	}
 }
