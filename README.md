@@ -20,6 +20,7 @@ This is a simple application to answer Kubernetes probes that could be used to t
 | /config              | POST   | Update probes delay                             |
 | /delay/:seconds      | GET    | Return 200 after X seconds of delay             |
 | /graceDelay/:seconds | GET    | Return 200 after X seconds but handle shutdown  |
+| /metrics             | GET    | Prometheus metrics endpoint                     |
 
 ### Config endpoint
 ```bash
