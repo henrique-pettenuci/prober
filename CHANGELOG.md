@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.3](https://github.com/hpettenuci/prober/compare/v1.4.2...v1.4.3) (2025-03-03)
+
+
+### Bug Fixes
+
+* Update release user ([#24](https://github.com/hpettenuci/prober/issues/24)) ([8acc57f](https://github.com/hpettenuci/prober/commit/8acc57f96b3d691f467a572f786f0a7783446016))
+
 ### [1.4.2](https://github.com/hpettenuci/prober/compare/v1.4.1...v1.4.2) (2025-03-03)
 
 
