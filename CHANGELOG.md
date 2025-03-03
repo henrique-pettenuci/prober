@@ -1,5 +1,12 @@
 # Changelog
 
+### [1.4.2](https://github.com/hpettenuci/prober/compare/v1.4.1...v1.4.2) (2025-03-03)
+
+
+### Bug Fixes
+
+* improve deploy object ([#22](https://github.com/hpettenuci/prober/issues/22)) ([e95dd06](https://github.com/hpettenuci/prober/commit/e95dd060c1688d0e218d68fb5448d30af955008b))
+
 ### [1.4.1](https://github.com/hpettenuci/prober/compare/v1.4.0...v1.4.1) (2025-03-03)
 
 
