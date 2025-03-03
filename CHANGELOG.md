@@ -1,5 +1,12 @@
 # Changelog
 
+### [1.4.1](https://github.com/hpettenuci/prober/compare/v1.4.0...v1.4.1) (2025-03-03)
+
+
+### Bug Fixes
+
+* ci pipeline ([#19](https://github.com/hpettenuci/prober/issues/19)) ([bb977a4](https://github.com/hpettenuci/prober/commit/bb977a4ee9f7a3065faab30d5e58afbdc0ec0e15))
+
 ## [1.4.0](https://github.com/hpettenuci/prober/compare/v1.3.1...v1.4.0) (2025-02-16)
 
 
