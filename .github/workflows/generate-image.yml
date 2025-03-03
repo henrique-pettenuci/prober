@@ -3,10 +3,6 @@ on:
   push:
     tags: 
     - '*'
-  workflow_dispatch:
-    inputs:
-      version:
-        required: true
 
 env:
   REGISTRY: ghcr.io
@@ -19,7 +15,9 @@ jobs:
       contents: read
       packages: write
       id-token: write
-
+    strategy:
+      matrix:
+        architecture: [amd64, arm64]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
