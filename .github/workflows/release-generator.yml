@@ -9,15 +9,13 @@ permissions:
   contents: write
   pull-requests: write
 
-env:
-  GITHUB_TOKEN: ${{ secrets.CI_PAT }}
-
 jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
       - name: release-please-action
-        uses: google-github-actions/release-please-action@v3.1.2
+        uses: google-github-actions/release-please-action@v4
         with:
           release-type: go
           package-name: prober
+          token: ${{ secrets.CI_PAT }}
