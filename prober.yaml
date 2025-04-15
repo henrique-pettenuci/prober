@@ -17,61 +17,60 @@ spec:
         app: prober
     spec:
       containers:
-      - name: prober
-        ports:
-          - name: http
-            containerPort: 8080
-        image: prober:latest
-        imagePullPolicy: Never
-        startupProbe:
-          httpGet:
-            path: /startup
-            port: 8080
-            scheme: HTTP
-          failureThreshold: 5
-          periodSeconds: 5
-          timeoutSeconds: 5
-        livenessProbe:
-          httpGet:
-            path: /liveness
-            port: 8080
-            scheme: HTTP
-          periodSeconds: 10
-          timeoutSeconds: 5
-        readinessProbe:
-          httpGet:
-            path: /readiness
-            port: 8080
-            scheme: HTTP
-          periodSeconds: 5
-          successThreshold: 2
-          timeoutSeconds: 3
-        resources:
-          requests:
-            cpu: 50m
-            memory: 32Mi
-          limits:
-            cpu: 500m
-            memory: 120Mi
-        env:
-          - name: GOMAXPROCS
-            valueFrom:
-              resourceFieldRef:
-                resource: limits.cpu
-        lifecycle:
-          preStop:
-            exec:
-              command:
-                - /bin/sleep
-                - "30"
-        env:
-          - name: STARTUP_PROBE_DELAY
-            value: '0'
-          - name: READINESS_PROBE_DELAY
-            value: '0'
-          - name: LIVENESS_PROBE_DELAY
-            value: '0'
-    terminationGracePeriodSeconds: 120
+        - name: prober
+          ports:
+            - name: http
+              containerPort: 8080
+          image: prober:latest
+          imagePullPolicy: Never
+          startupProbe:
+            httpGet:
+              path: /startup
+              port: 8080
+              scheme: HTTP
+            failureThreshold: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /liveness
+              port: 8080
+              scheme: HTTP
+            periodSeconds: 10
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /readiness
+              port: 8080
+              scheme: HTTP
+            periodSeconds: 5
+            successThreshold: 2
+            timeoutSeconds: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 500m
+              memory: 120Mi
+          env:
+            - name: GOMAXPROCS
+              valueFrom:
+                resourceFieldRef:
+                  resource: limits.cpu
+            - name: STARTUP_PROBE_DELAY
+              value: "0"
+            - name: READINESS_PROBE_DELAY
+              value: "0"
+            - name: LIVENESS_PROBE_DELAY
+              value: "0"
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sleep
+                  - "30"
+      terminationGracePeriodSeconds: 120
 ---
 apiVersion: v1
 kind: Service
@@ -88,3 +87,4 @@ spec:
   selector:
     frontedBy: prober
   type: ClusterIP
+
