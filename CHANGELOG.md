@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.4](https://github.com/hpettenuci/prober/compare/v1.4.3...v1.4.4) (2025-04-17)
+
+
+### Bug Fixes
+
+* docker image and deployment sintax fixes ([#28](https://github.com/hpettenuci/prober/issues/28)) ([2b28016](https://github.com/hpettenuci/prober/commit/2b28016e042d9e464e607b7ae2be7bf804f6a5a1))
+
 ## [1.4.3](https://github.com/hpettenuci/prober/compare/v1.4.2...v1.4.3) (2025-03-03)
 
 
