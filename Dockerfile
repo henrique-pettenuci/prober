@@ -1,4 +1,4 @@
-FROM golang:1.23 AS build-stage
+FROM golang:1.25 AS build-stage
 WORKDIR /app
 
 COPY go.mod go.sum ./
@@ -8,7 +8,7 @@ COPY *.go ./
 
 RUN CGO_ENABLED=0 GOOS=linux go build -o /prober
 
-FROM alpine:3.21 AS build-release-stage
+FROM alpine:3.22 AS build-release-stage
 
 WORKDIR /
 
