@@ -23,13 +23,16 @@ const (
 )
 
 var (
-	inShutdown bool = false
-	m          *metrics
+	inShutdown          bool = false
+	m                   *metrics
+	startupProbeDelay   time.Duration = 0
+	readinessProbeDelay time.Duration = 0
+	livenessProbeDelay  time.Duration = 0
 )
 
 type metrics struct {
-	activeRequests  prometheus.Gauge
-	requestCounter  *prometheus.CounterVec
+	activeRequests prometheus.Gauge
+	requestCounter *prometheus.CounterVec
 }
 
 type configs struct {
@@ -38,12 +41,9 @@ type configs struct {
 	Liveness  string `json:"liveness"`
 }
 
-func getProbeDelay(probeEnv string) time.Duration {
-	probeDelay, exists := os.LookupEnv(probeEnv)
-	if !exists {
-		return 0
-	}
-	delay, err := strconv.ParseInt(probeDelay, 10, 8)
+func setProbeDelay(probeEnv string, envValue string) time.Duration {
+	os.Setenv(probeEnv, envValue)
+	delay, err := strconv.ParseInt(envValue, 10, 8)
 	if err != nil {
 		log.Printf("Invalid delay value for %s: %v", probeEnv, err)
 		return 0
@@ -51,23 +51,27 @@ func getProbeDelay(probeEnv string) time.Duration {
 	return time.Duration(delay) * time.Second
 }
 
-func probeHandler(probeEnv string, message string) gin.HandlerFunc {
+func probeHandler(probeDelay time.Duration, message string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		time.Sleep(getProbeDelay(probeEnv))
+		time.Sleep(probeDelay)
 		c.JSON(http.StatusOK, gin.H{"message": message})
 	}
 }
 
 func postConfigs(c *gin.Context) {
+	m.activeRequests.Inc()
+	defer m.activeRequests.Dec()
+
 	var newConfigs configs
 	if err := c.BindJSON(&newConfigs); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid JSON"})
 		return
 	}
 
-	os.Setenv(startupProbeDelayEnv, newConfigs.Startup)
-	os.Setenv(readinessProbeDelayEnv, newConfigs.Readiness)
-	os.Setenv(livenessProbeDelayEnv, newConfigs.Liveness)
+	// Update the probe delay variables
+	startupProbeDelay = setProbeDelay(startupProbeDelayEnv, newConfigs.Startup)
+	readinessProbeDelay = setProbeDelay(readinessProbeDelayEnv, newConfigs.Readiness)
+	livenessProbeDelay = setProbeDelay(livenessProbeDelayEnv, newConfigs.Liveness)
 
 	c.JSON(http.StatusCreated, newConfigs)
 	m.requestCounter.WithLabelValues("POST", "/config", strconv.Itoa(c.Writer.Status())).Inc()
@@ -75,6 +79,7 @@ func postConfigs(c *gin.Context) {
 
 func delayRequest(c *gin.Context) {
 	m.activeRequests.Inc()
+	defer m.activeRequests.Dec()
 
 	delay, err := strconv.ParseInt(c.Param("seconds"), 10, 64)
 	if err != nil {
@@ -84,12 +89,12 @@ func delayRequest(c *gin.Context) {
 	time.Sleep(time.Duration(delay) * time.Second)
 
 	c.JSON(http.StatusOK, gin.H{"message": delay})
-	m.activeRequests.Dec()
 	m.requestCounter.WithLabelValues(c.Request.Method, c.FullPath(), strconv.Itoa(c.Writer.Status())).Inc()
 }
 
 func graceDelayRequest(c *gin.Context) {
 	m.activeRequests.Inc()
+	defer m.activeRequests.Dec()
 
 	delay, err := strconv.ParseInt(c.Param("seconds"), 10, 64)
 	if err != nil {
@@ -110,7 +115,6 @@ func graceDelayRequest(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": delayInc})
-	m.activeRequests.Dec()
 	m.requestCounter.WithLabelValues(c.Request.Method, c.FullPath(), strconv.Itoa(c.Writer.Status())).Inc()
 }
 
@@ -143,9 +147,9 @@ func main() {
 
 	router.GET("/metrics", gin.WrapH(promhttp.HandlerFor(promRegistry, promhttp.HandlerOpts{})))
 	// Probes
-	router.GET("/startup", probeHandler(startupProbeDelayEnv, "startup"))
-	router.GET("/readiness", probeHandler(readinessProbeDelayEnv, "readiness"))
-	router.GET("/liveness", probeHandler(livenessProbeDelayEnv, "liveness"))
+	router.GET("/startup", probeHandler(startupProbeDelay, "startup"))
+	router.GET("/readiness", probeHandler(readinessProbeDelay, "readiness"))
+	router.GET("/liveness", probeHandler(livenessProbeDelay, "liveness"))
 	// Config
 	router.POST("/config", postConfigs)
 
@@ -188,7 +192,7 @@ func gracefulShutdown(srv *http.Server) func(reason interface{}) {
 		defer cancel()
 
 		if err := srv.Shutdown(ctx); err != nil {
-			log.Println("Erros to Gracefully shutdown server: ", err)
+			log.Println("Error to Gracefully shutdown server: ", err)
 		}
 	}
 }
