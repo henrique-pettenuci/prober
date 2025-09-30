@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.5.0](https://github.com/henrique-pettenuci/prober/compare/v1.4.4...v1.5.0) (2025-09-30)
+
+
+### Features
+
+* General improvements ([#31](https://github.com/henrique-pettenuci/prober/issues/31)) ([a066069](https://github.com/henrique-pettenuci/prober/commit/a0660690f4deb2aac3448b8b6f83f14a2b6d99d1))
+* improve metrics handling ([a066069](https://github.com/henrique-pettenuci/prober/commit/a0660690f4deb2aac3448b8b6f83f14a2b6d99d1))
+
+
+### Bug Fixes
+
+* reduce interaction with env variables ([a066069](https://github.com/henrique-pettenuci/prober/commit/a0660690f4deb2aac3448b8b6f83f14a2b6d99d1))
+
 ## [1.4.4](https://github.com/henrique-pettenuci/prober/compare/v1.4.3...v1.4.4) (2025-04-17)
 
 
