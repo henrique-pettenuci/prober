@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.1](https://github.com/henrique-pettenuci/prober/compare/v1.5.0...v1.5.1) (2025-10-02)
+
+
+### Bug Fixes
+
+* avoid negative values on probe config ([f5094cd](https://github.com/henrique-pettenuci/prober/commit/f5094cdd41458a2014bdc9d84e59c81a1768c380))
+* read environment variables config on application startup ([f5094cd](https://github.com/henrique-pettenuci/prober/commit/f5094cdd41458a2014bdc9d84e59c81a1768c380))
+
 ## [1.5.0](https://github.com/henrique-pettenuci/prober/compare/v1.4.4...v1.5.0) (2025-09-30)
 
 
