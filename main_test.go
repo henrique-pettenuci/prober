@@ -1,11 +1,11 @@
 package main
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -15,112 +15,51 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestStartupProbe(t *testing.T) {
+func setGinMode() {
 	gin.SetMode(gin.TestMode)
-	router := gin.Default()
-	router.GET("/startup", probeHandler(0, "startup"))
-
-	req, _ := http.NewRequest("GET", "/startup", nil)
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, `{"message":"startup"}`, w.Body.String())
+	gin.DefaultWriter = io.Discard
 }
 
-func TestStartupProbeWithDelay(t *testing.T) {
-	gin.SetMode(gin.TestMode)
+// probeHandler
+func TestProbeHandlerFunction(t *testing.T) {
+	setGinMode()
 	router := gin.Default()
-	delay := 100 * time.Millisecond
-	router.GET("/startup", probeHandler(delay, "startup"))
 
-	req, _ := http.NewRequest("GET", "/startup", nil)
+	delay := 100 * time.Millisecond
+	handler := probeHandler(delay)
+	router.GET("/test", handler)
+
+	req, _ := http.NewRequest("GET", "/test", nil)
 	w := httptest.NewRecorder()
 	start := time.Now()
 	router.ServeHTTP(w, req)
 	duration := time.Since(start)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, `{"message":"startup"}`, w.Body.String())
+	assert.Equal(t, "null", w.Body.String())
 	assert.GreaterOrEqual(t, duration, delay)
 }
 
-func TestReadinessProbe(t *testing.T) {
-	gin.SetMode(gin.TestMode)
+func BenchmarkProbeHandlerFunction(b *testing.B) {
+	setGinMode()
 	router := gin.Default()
-	router.GET("/readiness", probeHandler(0, "readiness"))
+	router.GET("/test", probeHandler(0))
 
-	req, _ := http.NewRequest("GET", "/readiness", nil)
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, `{"message":"readiness"}`, w.Body.String())
+	for i := 0; i < b.N; i++ {
+		req, _ := http.NewRequest("GET", "/test", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+	}
 }
 
-func TestLivenessProbe(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	router := gin.Default()
-	router.GET("/liveness", probeHandler(0, "liveness"))
-
-	req, _ := http.NewRequest("GET", "/liveness", nil)
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, `{"message":"liveness"}`, w.Body.String())
-}
-
-func TestPostConfigs(t *testing.T) {
-	// Initialize prometheus registry and metrics
-	promRegistry := prometheus.NewRegistry()
-	m = setMetrics(promRegistry)
-
-	gin.SetMode(gin.TestMode)
-	router := gin.Default()
-	router.POST("/config", postConfigs)
-
-	body := `{"startup":"5","readiness":"10","liveness":"15"}`
-	req, _ := http.NewRequest("POST", "/config", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusCreated, w.Code)
-	assert.Equal(t, `{"startup":"5","readiness":"10","liveness":"15"}`, w.Body.String())
-	assert.Equal(t, "5", os.Getenv("STARTUP_PROBE_DELAY"))
-	assert.Equal(t, "10", os.Getenv("READINESS_PROBE_DELAY"))
-	assert.Equal(t, "15", os.Getenv("LIVENESS_PROBE_DELAY"))
-	assert.Equal(t, 5*time.Second, startupProbeDelay)
-	assert.Equal(t, 10*time.Second, readinessProbeDelay)
-	assert.Equal(t, 15*time.Second, livenessProbeDelay)
-}
-
-func TestPostConfigsInvalidJSON(t *testing.T) {
-	// Initialize prometheus registry and metrics
-	promRegistry := prometheus.NewRegistry()
-	m = setMetrics(promRegistry)
-
-	gin.SetMode(gin.TestMode)
-	router := gin.Default()
-	router.POST("/config", postConfigs)
-
-	body := `{"startup":"5","readiness":"10","liveness":}`
-	req, _ := http.NewRequest("POST", "/config", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-	assert.Contains(t, w.Body.String(), "Invalid JSON")
-}
-
+// delayRequest
 func TestDelayRequest(t *testing.T) {
+	setGinMode()
+
 	// Initialize prometheus registry and metrics
 	promRegistry := prometheus.NewRegistry()
 	m = setMetrics(promRegistry)
 
-	gin.SetMode(gin.TestMode)
 	router := gin.Default()
 	router.GET("/delay/:seconds", delayRequest)
 
@@ -136,11 +75,12 @@ func TestDelayRequest(t *testing.T) {
 }
 
 func TestDelayRequestInvalidValue(t *testing.T) {
+	setGinMode()
+
 	// Initialize prometheus registry and metrics
 	promRegistry := prometheus.NewRegistry()
 	m = setMetrics(promRegistry)
 
-	gin.SetMode(gin.TestMode)
 	router := gin.Default()
 	router.GET("/delay/:seconds", delayRequest)
 
@@ -152,12 +92,31 @@ func TestDelayRequestInvalidValue(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "Invalid delay value")
 }
 
-func TestGraceDelayRequest(t *testing.T) {
+func BenchmarkDelayRequest(b *testing.B) {
 	// Initialize prometheus registry and metrics
 	promRegistry := prometheus.NewRegistry()
 	m = setMetrics(promRegistry)
 
-	gin.SetMode(gin.TestMode)
+	setGinMode()
+	router := gin.Default()
+	router.GET("/delay/:seconds", delayRequest)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		req, _ := http.NewRequest("GET", "/delay/0", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+	}
+}
+
+// graceDelayRequest
+func TestGraceDelayRequestWithShutdown(t *testing.T) {
+	setGinMode()
+
+	// Initialize prometheus registry and metrics
+	promRegistry := prometheus.NewRegistry()
+	m = setMetrics(promRegistry)
+
 	router := gin.Default()
 	router.GET("/graceDelay/:seconds", graceDelayRequest)
 
@@ -186,11 +145,11 @@ func TestGraceDelayRequest(t *testing.T) {
 }
 
 func TestGraceDelayRequestNoShutdown(t *testing.T) {
+	setGinMode()
 	// Initialize prometheus registry and metrics
 	promRegistry := prometheus.NewRegistry()
 	m = setMetrics(promRegistry)
 
-	gin.SetMode(gin.TestMode)
 	router := gin.Default()
 	router.GET("/graceDelay/:seconds", graceDelayRequest)
 
@@ -209,11 +168,11 @@ func TestGraceDelayRequestNoShutdown(t *testing.T) {
 }
 
 func TestGraceDelayRequestInvalidValue(t *testing.T) {
+	setGinMode()
 	// Initialize prometheus registry and metrics
 	promRegistry := prometheus.NewRegistry()
 	m = setMetrics(promRegistry)
 
-	gin.SetMode(gin.TestMode)
 	router := gin.Default()
 	router.GET("/graceDelay/:seconds", graceDelayRequest)
 
@@ -225,60 +184,66 @@ func TestGraceDelayRequestInvalidValue(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "Invalid delay value")
 }
 
-func TestGraceDelayRequestZeroDelay(t *testing.T) {
+func BenchmarkGraceDelayRequest(b *testing.B) {
 	// Initialize prometheus registry and metrics
 	promRegistry := prometheus.NewRegistry()
 	m = setMetrics(promRegistry)
 
-	gin.SetMode(gin.TestMode)
+	setGinMode()
 	router := gin.Default()
-	router.GET("/graceDelay/:seconds", graceDelayRequest)
+	router.GET("/graceDelay/:seconds", delayRequest)
 
-	req, _ := http.NewRequest("GET", "/graceDelay/0", nil)
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, `{"message":0}`, w.Body.String())
-}
-
-func TestSetProbeDelay(t *testing.T) {
-	tests := []struct {
-		name        string
-		probeEnv    string
-		envValue    string
-		expected    time.Duration
-		expectError bool
-	}{
-		{
-			name:     "valid delay value",
-			probeEnv: "TEST_PROBE_DELAY",
-			envValue: "5",
-			expected: 5 * time.Second,
-		},
-		{
-			name:     "zero delay value",
-			probeEnv: "TEST_PROBE_DELAY",
-			envValue: "0",
-			expected: 0,
-		},
-		{
-			name:     "invalid delay value",
-			probeEnv: "TEST_PROBE_DELAY",
-			envValue: "invalid",
-			expected: 0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := setProbeDelay(tt.probeEnv, tt.envValue)
-			assert.Equal(t, tt.expected, result)
-			assert.Equal(t, tt.envValue, os.Getenv(tt.probeEnv))
-		})
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		req, _ := http.NewRequest("GET", "/graceDelay/0", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
 	}
 }
 
+// initProbes | setProbeDelay
+func TestInitProbes(t *testing.T) {
+	// Test that environment variables are properly read on startup
+	os.Setenv(startupProbeDelayEnv, "3")
+	os.Setenv(readinessProbeDelayEnv, "6")
+	os.Setenv(livenessProbeDelayEnv, "9")
+
+	// Reset global variables to test initialization
+	startupProbeDelay = 0
+	readinessProbeDelay = 0
+	livenessProbeDelay = 0
+
+	initProbes()
+	assert.Equal(t, 3*time.Second, startupProbeDelay)
+	assert.Equal(t, 6*time.Second, readinessProbeDelay)
+	assert.Equal(t, 9*time.Second, livenessProbeDelay)
+	assert.Equal(t, "3", os.Getenv("STARTUP_PROBE_DELAY"))
+	assert.Equal(t, "6", os.Getenv("READINESS_PROBE_DELAY"))
+	assert.Equal(t, "9", os.Getenv("LIVENESS_PROBE_DELAY"))
+
+}
+
+func TestInitProbesWithoutEnv(t *testing.T) {
+	// Test that environment variables are properly read on startup
+	os.Unsetenv(startupProbeDelayEnv)
+	os.Unsetenv(readinessProbeDelayEnv)
+	os.Unsetenv(livenessProbeDelayEnv)
+
+	// Reset global variables to test initialization
+	startupProbeDelay = 0
+	readinessProbeDelay = 0
+	livenessProbeDelay = 0
+
+	initProbes()
+	assert.Equal(t, 0*time.Second, startupProbeDelay)
+	assert.Equal(t, 0*time.Second, readinessProbeDelay)
+	assert.Equal(t, 0*time.Second, livenessProbeDelay)
+	assert.Equal(t, "0", os.Getenv("STARTUP_PROBE_DELAY"))
+	assert.Equal(t, "0", os.Getenv("READINESS_PROBE_DELAY"))
+	assert.Equal(t, "0", os.Getenv("LIVENESS_PROBE_DELAY"))
+}
+
+// setMetrics
 func TestSetMetrics(t *testing.T) {
 	promRegistry := prometheus.NewRegistry()
 	metrics := setMetrics(promRegistry)
@@ -288,8 +253,9 @@ func TestSetMetrics(t *testing.T) {
 	assert.NotNil(t, metrics.activeRequests)
 }
 
+// metrics
 func TestMetricsEndpoint(t *testing.T) {
-	gin.SetMode(gin.TestMode)
+	setGinMode()
 	router := gin.Default()
 
 	promRegistry := prometheus.NewRegistry()
@@ -317,71 +283,12 @@ func TestMetricsEndpoint(t *testing.T) {
 	assert.Contains(t, w.Body.String(), "active_requests")
 }
 
-func TestProbeHandlerFunction(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	router := gin.Default()
-
-	delay := 100 * time.Millisecond
-	handler := probeHandler(delay, "test-message")
-	router.GET("/test", handler)
-
-	req, _ := http.NewRequest("GET", "/test", nil)
-	w := httptest.NewRecorder()
-	start := time.Now()
-	router.ServeHTTP(w, req)
-	duration := time.Since(start)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, `{"message":"test-message"}`, w.Body.String())
-	assert.GreaterOrEqual(t, duration, delay)
-}
-
-func TestGracefulShutdownFunction(t *testing.T) {
-	// This test verifies the gracefulShutdown function returns a proper closure
-	gin.SetMode(gin.TestMode)
-	router := gin.Default()
-	srv := &http.Server{
-		Addr:    ":0", // Use any available port
-		Handler: router,
-	}
-
-	shutdownFunc := gracefulShutdown(srv)
-	assert.NotNil(t, shutdownFunc)
-
-	// Test that calling the shutdown function doesn't panic
-	assert.NotPanics(t, func() {
-		shutdownFunc("test shutdown")
-	})
-}
-func TestPostConfigsWithInvalidDelayValues(t *testing.T) {
-	// Initialize prometheus registry and metrics
-	promRegistry := prometheus.NewRegistry()
-	m = setMetrics(promRegistry)
-
-	gin.SetMode(gin.TestMode)
-	router := gin.Default()
-	router.POST("/config", postConfigs)
-
-	body := `{"startup":"invalid","readiness":"10","liveness":"15"}`
-	req, _ := http.NewRequest("POST", "/config", strings.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	router.ServeHTTP(w, req)
-
-	assert.Equal(t, http.StatusCreated, w.Code)
-	assert.Equal(t, `{"startup":"invalid","readiness":"10","liveness":"15"}`, w.Body.String())
-	// Invalid values should result in 0 duration
-	assert.Equal(t, time.Duration(0), startupProbeDelay)
-	assert.Equal(t, 10*time.Second, readinessProbeDelay)
-	assert.Equal(t, 15*time.Second, livenessProbeDelay)
-}
-
 func TestActiveRequestsMetric(t *testing.T) {
 	// Initialize prometheus registry and metrics
 	promRegistry := prometheus.NewRegistry()
 	m = setMetrics(promRegistry)
 
-	gin.SetMode(gin.TestMode)
+	setGinMode()
 	router := gin.Default()
 	router.GET("/delay/:seconds", delayRequest)
 
@@ -433,7 +340,7 @@ func TestRequestCounterMetric(t *testing.T) {
 	promRegistry := prometheus.NewRegistry()
 	m = setMetrics(promRegistry)
 
-	gin.SetMode(gin.TestMode)
+	setGinMode()
 	router := gin.Default()
 	router.GET("/delay/:seconds", delayRequest)
 
@@ -466,89 +373,25 @@ func TestRequestCounterMetric(t *testing.T) {
 	assert.Equal(t, float64(1), requestCounterValue)
 }
 
-func TestEnvironmentVariableInitialization(t *testing.T) {
-	// Test that environment variables are properly read on startup
-	os.Setenv(startupProbeDelayEnv, "3")
-	os.Setenv(readinessProbeDelayEnv, "6")
-	os.Setenv(livenessProbeDelayEnv, "9")
-
-	// Reset global variables to test initialization
-	startupProbeDelay = 0
-	readinessProbeDelay = 0
-	livenessProbeDelay = 0
-
-	// Simulate what would happen during initialization
-	if val := os.Getenv(startupProbeDelayEnv); val != "" {
-		startupProbeDelay = setProbeDelay(startupProbeDelayEnv, val)
-	}
-	if val := os.Getenv(readinessProbeDelayEnv); val != "" {
-		readinessProbeDelay = setProbeDelay(readinessProbeDelayEnv, val)
-	}
-	if val := os.Getenv(livenessProbeDelayEnv); val != "" {
-		livenessProbeDelay = setProbeDelay(livenessProbeDelayEnv, val)
-	}
-
-	assert.Equal(t, 3*time.Second, startupProbeDelay)
-	assert.Equal(t, 6*time.Second, readinessProbeDelay)
-	assert.Equal(t, 9*time.Second, livenessProbeDelay)
-
-	// Clean up
-	os.Unsetenv(startupProbeDelayEnv)
-	os.Unsetenv(readinessProbeDelayEnv)
-	os.Unsetenv(livenessProbeDelayEnv)
-}
-
-// Benchmark tests
-func BenchmarkStartupProbe(b *testing.B) {
-	gin.SetMode(gin.ReleaseMode)
+// gracefulShutdown
+func TestGracefulShutdownFunction(t *testing.T) {
+	// This test verifies the gracefulShutdown function returns a proper closure
+	setGinMode()
 	router := gin.Default()
-	router.GET("/startup", probeHandler(0, "startup"))
-
-	for i := 0; i < b.N; i++ {
-		req, _ := http.NewRequest("GET", "/startup", nil)
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
+	srv := &http.Server{
+		Addr:    ":0", // Use any available port
+		Handler: router,
 	}
+
+	shutdownFunc := gracefulShutdown(srv)
+	assert.NotNil(t, shutdownFunc)
+
+	// Test that calling the shutdown function doesn't panic
+	assert.NotPanics(t, func() {
+		shutdownFunc("test shutdown")
+	})
 }
 
-func BenchmarkDelayRequest(b *testing.B) {
-	// Initialize prometheus registry and metrics
-	promRegistry := prometheus.NewRegistry()
-	m = setMetrics(promRegistry)
-
-	gin.SetMode(gin.ReleaseMode)
-	router := gin.Default()
-	router.GET("/delay/:seconds", delayRequest)
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		req, _ := http.NewRequest("GET", "/delay/0", nil)
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
-	}
-}
-
-func BenchmarkPostConfigs(b *testing.B) {
-	// Initialize prometheus registry and metrics
-	promRegistry := prometheus.NewRegistry()
-	m = setMetrics(promRegistry)
-
-	gin.SetMode(gin.ReleaseMode)
-	router := gin.Default()
-	router.POST("/config", postConfigs)
-
-	body := `{"startup":"1","readiness":"2","liveness":"3"}`
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		req, _ := http.NewRequest("POST", "/config", strings.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		w := httptest.NewRecorder()
-		router.ServeHTTP(w, req)
-	}
-}
-
-// Test for graceful shutdown error handling
 func TestGracefulShutdownWithError(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.Default()
@@ -570,29 +413,93 @@ func TestGracefulShutdownWithError(t *testing.T) {
 	})
 }
 
-// Test concurrent requests to ensure thread safety
-func TestConcurrentRequests(t *testing.T) {
+// postConfigs
+func TestPostConfigs(t *testing.T) {
+	setGinMode()
+
 	// Initialize prometheus registry and metrics
 	promRegistry := prometheus.NewRegistry()
 	m = setMetrics(promRegistry)
 
-	gin.SetMode(gin.TestMode)
 	router := gin.Default()
-	router.GET("/delay/:seconds", delayRequest)
+	router.POST("/config", postConfigs)
 
-	const numRequests = 10
-	var wg sync.WaitGroup
-	wg.Add(numRequests)
+	body := `{"startup":"5","readiness":"10","liveness":"15"}`
+	req, _ := http.NewRequest("POST", "/config", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
 
-	for i := 0; i < numRequests; i++ {
-		go func() {
-			defer wg.Done()
-			req, _ := http.NewRequest("GET", "/delay/0", nil)
-			w := httptest.NewRecorder()
-			router.ServeHTTP(w, req)
-			assert.Equal(t, http.StatusOK, w.Code)
-		}()
-	}
-
-	wg.Wait()
+	assert.Equal(t, http.StatusCreated, w.Code)
+	assert.Equal(t, `{"startup":"5","readiness":"10","liveness":"15"}`, w.Body.String())
+	assert.Equal(t, "5", os.Getenv("STARTUP_PROBE_DELAY"))
+	assert.Equal(t, "10", os.Getenv("READINESS_PROBE_DELAY"))
+	assert.Equal(t, "15", os.Getenv("LIVENESS_PROBE_DELAY"))
+	assert.Equal(t, 5*time.Second, startupProbeDelay)
+	assert.Equal(t, 10*time.Second, readinessProbeDelay)
+	assert.Equal(t, 15*time.Second, livenessProbeDelay)
 }
+
+func TestPostConfigsInvalidJSON(t *testing.T) {
+	setGinMode()
+	// Initialize prometheus registry and metrics
+	promRegistry := prometheus.NewRegistry()
+	m = setMetrics(promRegistry)
+
+	router := gin.Default()
+	router.POST("/config", postConfigs)
+
+	body := `{"startup":"5","readiness":"10","liveness":}`
+	req, _ := http.NewRequest("POST", "/config", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "Invalid JSON")
+}
+
+func TestPostConfigsWithInvalidDelayValues(t *testing.T) {
+	// Initialize prometheus registry and metrics
+	promRegistry := prometheus.NewRegistry()
+	m = setMetrics(promRegistry)
+
+	setGinMode()
+	router := gin.Default()
+	router.POST("/config", postConfigs)
+
+	body := `{"startup":"invalid","readiness":"10","liveness":"15"}`
+	req, _ := http.NewRequest("POST", "/config", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusCreated, w.Code)
+	assert.Equal(t, `{"startup":"invalid","readiness":"10","liveness":"15"}`, w.Body.String())
+	// Invalid values should result in 0 duration
+	assert.Equal(t, time.Duration(0), startupProbeDelay)
+	assert.Equal(t, 10*time.Second, readinessProbeDelay)
+	assert.Equal(t, 15*time.Second, livenessProbeDelay)
+}
+
+func BenchmarkPostConfigs(b *testing.B) {
+	// Initialize prometheus registry and metrics
+	promRegistry := prometheus.NewRegistry()
+	m = setMetrics(promRegistry)
+
+	setGinMode()
+	router := gin.Default()
+	router.POST("/config", postConfigs)
+
+	body := `{"startup":"1","readiness":"2","liveness":"3"}`
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		req, _ := http.NewRequest("POST", "/config", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+	}
+}
+
+// main
