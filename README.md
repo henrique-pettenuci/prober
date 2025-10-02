@@ -1,3 +1,5 @@
+[![codecov](https://codecov.io/gh/henrique-pettenuci/prober/graph/badge.svg?token=UXUGOUGL8W)](https://codecov.io/gh/henrique-pettenuci/prober) [![PR Tests](https://github.com/henrique-pettenuci/prober/actions/workflows/pr-tests.yml/badge.svg)](https://github.com/henrique-pettenuci/prober/actions/workflows/pr-tests.yml) [![CodeQL](https://github.com/henrique-pettenuci/prober/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/henrique-pettenuci/prober/actions/workflows/github-code-scanning/codeql)
+
 # PROBER
 
 This is a simple application to answer Kubernetes probes that could be used to teach about probes and their behavior
