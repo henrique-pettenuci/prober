@@ -3,6 +3,9 @@ run-name: Run tests on pull request
 on:
   pull_request:
     types: [opened, synchronize]
+  push:
+    branches:
+      - main
 
 jobs:
   test:
