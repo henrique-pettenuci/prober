@@ -41,6 +41,26 @@ type configs struct {
 	Liveness  string `json:"liveness"`
 }
 
+func initProbes() {
+	startupProbeDelayEnvValue, exists := os.LookupEnv(startupProbeDelayEnv)
+	if !exists {
+		startupProbeDelayEnvValue = "0"
+	}
+	startupProbeDelay = setProbeDelay(startupProbeDelayEnv, startupProbeDelayEnvValue)
+
+	readinessProbeDelayEnvValue, exists := os.LookupEnv(readinessProbeDelayEnv)
+	if !exists {
+		readinessProbeDelayEnvValue = "0"
+	}
+	readinessProbeDelay = setProbeDelay(readinessProbeDelayEnv, readinessProbeDelayEnvValue)
+
+	livenessProbeDelayEnvValue, exists := os.LookupEnv(livenessProbeDelayEnv)
+	if !exists {
+		livenessProbeDelayEnvValue = "0"
+	}
+	livenessProbeDelay = setProbeDelay(livenessProbeDelayEnv, livenessProbeDelayEnvValue)
+}
+
 func setProbeDelay(probeEnv string, envValue string) time.Duration {
 	os.Setenv(probeEnv, envValue)
 	delay, err := strconv.ParseInt(envValue, 10, 8)
@@ -51,10 +71,10 @@ func setProbeDelay(probeEnv string, envValue string) time.Duration {
 	return time.Duration(delay) * time.Second
 }
 
-func probeHandler(probeDelay time.Duration, message string) gin.HandlerFunc {
+func probeHandler(probeDelay time.Duration) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		time.Sleep(probeDelay)
-		c.JSON(http.StatusOK, gin.H{"message": message})
+		c.JSON(http.StatusOK, nil)
 	}
 }
 
@@ -96,12 +116,12 @@ func graceDelayRequest(c *gin.Context) {
 	m.activeRequests.Inc()
 	defer m.activeRequests.Dec()
 
-	delay, err := strconv.ParseInt(c.Param("seconds"), 10, 64)
+	delay, err := strconv.ParseUint(c.Param("seconds"), 10, 16)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid delay value"})
 		return
 	}
-	var delayInc int64 = 0
+	var delayInc uint64 = 0
 
 	if delay > 0 {
 		for delayInc < delay {
@@ -138,6 +158,8 @@ func setMetrics(promRegistry *prometheus.Registry) *metrics {
 }
 
 func main() {
+	initProbes()
+
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 
@@ -147,9 +169,9 @@ func main() {
 
 	router.GET("/metrics", gin.WrapH(promhttp.HandlerFor(promRegistry, promhttp.HandlerOpts{})))
 	// Probes
-	router.GET("/startup", probeHandler(startupProbeDelay, "startup"))
-	router.GET("/readiness", probeHandler(readinessProbeDelay, "readiness"))
-	router.GET("/liveness", probeHandler(livenessProbeDelay, "liveness"))
+	router.GET("/startup", probeHandler(startupProbeDelay))
+	router.GET("/readiness", probeHandler(readinessProbeDelay))
+	router.GET("/liveness", probeHandler(livenessProbeDelay))
 	// Config
 	router.POST("/config", postConfigs)
 
