@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.2](https://github.com/henrique-pettenuci/prober/compare/v1.5.1...v1.5.2) (2026-01-27)
+
+
+### Bug Fixes
+
+* **deps:** bump golang.org/x/crypto from 0.36.0 to 0.45.0 ([#36](https://github.com/henrique-pettenuci/prober/issues/36)) ([add1e46](https://github.com/henrique-pettenuci/prober/commit/add1e46fa4d39d8ea7656287703c9905a135584e))
+
 ## [1.5.1](https://github.com/henrique-pettenuci/prober/compare/v1.5.0...v1.5.1) (2025-10-02)
 
 
