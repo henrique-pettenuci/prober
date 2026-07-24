@@ -6,7 +6,7 @@
 ### Bug Fixes
 
 * **deps:** bump golang.org/x/crypto from 0.51.0 to 0.52.0 ([#39](https://github.com/henrique-pettenuci/prober/issues/39)) ([147da39](https://github.com/henrique-pettenuci/prober/commit/147da398c9ae574334f1e219f4b79bd30fe8738b))
-* **deps:** bump golang.org/x/net from 0.47.0 to 0.55.0 ([#38](https://github.com/henrique-pettenuci/prober/issues/38)) [skip ci] ([a78578e](https://github.com/henrique-pettenuci/prober/commit/a78578eb6a5bdade739d155a83b2d5786e7e1d1e))
+* **deps:** bump golang.org/x/net from 0.47.0 to 0.55.0 ([#38](https://github.com/henrique-pettenuci/prober/issues/38)) ([a78578e](https://github.com/henrique-pettenuci/prober/commit/a78578eb6a5bdade739d155a83b2d5786e7e1d1e))
 
 ## [1.5.2](https://github.com/henrique-pettenuci/prober/compare/v1.5.1...v1.5.2) (2026-01-27)
 
